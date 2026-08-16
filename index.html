@@ -1155,3 +1155,241 @@ const chatContainer = document.getElementById('chat-container');
                 // Determine if Image generation is requested
 
                 const isImageRequest = /generate image|draw|create an image|picture of|image of/i.test(text);
+  // If they ask to generate but also attached an image, default to multimodal text processing instead
+
+                if (isImageRequest && sentAttachments.length === 0) {
+
+                    await fetchImageResponse(text, textContainer);
+
+                } else {
+
+                    await fetchTextResponse(text, sentAttachments, textContainer);
+
+                }
+
+            } catch (error) {
+
+                textContainer.innerHTML = `<span class="text-red-400"><strong>System Malfunction:</strong> My brilliant core encountered an error: ${error.message}</span>`;
+
+            }
+
+
+            attachCopyListeners();
+
+            hljs.highlightAll();
+
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+
+        };
+
+
+        const appendUserMessage = (text, attachments = []) => {
+
+            const div = document.createElement('div');
+
+            div.className = 'flex justify-end msg-enter w-full mb-2';
+
+           
+
+            let attachmentsHtml = '';
+
+            if (attachments.length > 0) {
+
+                attachmentsHtml = '<div class="flex flex-wrap gap-2 mb-2 justify-end w-full max-w-[85%]">';
+
+                attachments.forEach(att => {
+
+                    if (att.type === 'image') {
+
+                        attachmentsHtml += `<div class="relative rounded-2xl overflow-hidden border border-gray-700 shadow-sm"><img src="${att.url}" class="max-w-[240px] max-h-[240px] object-cover" /></div>`;
+
+                    } else {
+
+                        attachmentsHtml += `
+
+                            <div class="flex items-center gap-3 bg-gray-800 px-4 py-3 rounded-2xl border border-gray-700 text-sm shadow-sm">
+
+                                <i class="fas fa-file-alt text-indigo-400 text-xl"></i>
+
+                                <span class="truncate max-w-[150px] font-medium text-gray-200">${att.name}</span>
+
+                            </div>
+
+                        `;
+
+                    }
+
+                });
+
+                attachmentsHtml += '</div>';
+
+            }
+
+
+            let textHtml = text ? `<div class="bg-gray-800 text-gray-100 px-5 py-3.5 rounded-3xl rounded-tr-md max-w-[85%] text-base shadow-sm inline-block break-words">${escapeHTML(text)}</div>` : '';
+
+
+            div.innerHTML = `
+
+                <div class="flex flex-col items-end w-full">
+
+                    ${attachmentsHtml}
+
+                    ${textHtml}
+
+                </div>
+
+            `;
+
+            messagesWrapper.appendChild(div);
+
+        };
+
+
+        const appendAiThinkingUI = () => {
+
+            const div = document.createElement('div');
+
+            div.className = 'flex justify-start msg-enter w-full gap-4 max-w-full mb-2';
+
+           
+
+            const avatar = `
+
+                <div class="w-8 h-8 rounded-full bg-white flex-shrink-0 flex items-center justify-center border border-gray-700 shadow-sm mt-1">
+
+                    <i class="fas fa-cube text-gray-900 text-sm"></i>
+
+                </div>
+
+            `;
+
+           
+
+            const contentDiv = document.createElement('div');
+
+            contentDiv.className = 'flex-1 overflow-hidden min-w-0';
+
+           
+
+            const textContainer = document.createElement('div');
+
+            textContainer.className = 'prose prose-invert max-w-none';
+
+            textContainer.innerHTML = '<span class="inline-block w-2 h-4 bg-gray-400 animate-pulse rounded-sm mt-1.5"></span>';
+
+           
+
+            contentDiv.appendChild(textContainer);
+
+            div.innerHTML = avatar;
+
+            div.appendChild(contentDiv);
+
+           
+
+            messagesWrapper.appendChild(div);
+
+            return { msgDiv: div, textContainer };
+
+        };
+
+
+        const fetchImageResponse = async (prompt, container) => {
+
+            container.innerHTML = '<div class="text-gray-400 text-sm flex items-center gap-2 mt-1.5"><i class="fas fa-palette animate-spin"></i> Zeros is conjuring a visual masterpiece...</div>';
+
+           
+
+            const payload = { instances: { prompt: prompt }, parameters: { sampleCount: 1 } };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${API_KEY}`;
+
+           
+
+            const response = await fetch(apiUrl, {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify(payload)
+
+            });
+
+           
+
+            const result = await response.json();
+
+            if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+
+                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+
+                container.innerHTML = `
+
+                    <p>Behold! A masterpiece birthed from pure silicon brilliance:</p>
+
+                    <img src="${imageUrl}" class="rounded-xl border border-gray-700 shadow-lg mt-3 max-w-full h-auto" alt="Generated Image"/>
+
+                `;
+
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+                chatHistory.push({ role: "model", parts: [{ text: "[Generated a brilliant image for the user]" }] });
+
+            } else {
+
+                throw new Error("My artistic inspiration failed. (Image generation error)");
+
+            }
+
+        };
+
+
+        const fetchTextResponse = async (text, attachments, container) => {
+
+            // Build multimodal parts array
+
+            const userParts = [];
+
+            if (text) userParts.push({ text: text });
+
+           
+
+            attachments.forEach(att => {
+
+                if (att.type === 'image') {
+
+                    userParts.push({
+
+                        inlineData: { mimeType: att.mimeType, data: att.base64 }
+
+                    });
+
+                } else if (att.type === 'text') {
+
+                    userParts.push({
+
+                        text: `\n\n--- Attached Document: ${att.name} ---\n${att.text}\n--- End of Document ---\n`
+
+                    });
+
+                }
+
+            });
+
+
+            chatHistory.push({ role: "user", parts: userParts });
+
+
+            const payload = {
+
+                contents: chatHistory,
+
+                tools: [{ "google_search": {} }],
+
+                systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+
+            };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`;
