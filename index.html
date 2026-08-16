@@ -1393,3 +1393,236 @@ const chatContainer = document.getElementById('chat-container');
             };
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`;
+const response = await fetch(apiUrl, {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify(payload)
+
+            });
+
+
+            const result = await response.json();
+
+            const candidate = result.candidates?.[0];
+
+
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+
+                const rawText = candidate.content.parts[0].text;
+
+               
+
+                // Extract Web Search Citations
+
+                let sourcesHTML = '';
+
+                const groundingMetadata = candidate.groundingMetadata;
+
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+
+                    const sources = groundingMetadata.groundingAttributions
+
+                        .map(attr => ({ uri: attr.web?.uri, title: attr.web?.title }))
+
+                        .filter(src => src.uri && src.title);
+
+                   
+
+                    if (sources.length > 0) {
+
+                        sourcesHTML = '<div class="mt-4 pt-4 border-t border-gray-800/50"><div class="text-xs text-gray-500 font-semibold mb-2">Sources consulted by my massive intellect:</div><div class="flex flex-wrap gap-2">';
+
+                        sources.forEach(src => {
+
+                            sourcesHTML += `<a href="${src.uri}" target="_blank" class="inline-flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-md transition-colors border border-gray-700"><i class="fas fa-globe text-gray-400"></i> ${src.title.substring(0, 30)}${src.title.length > 30 ? '...' : ''}</a>`;
+
+                        });
+
+                        sourcesHTML += '</div></div>';
+
+                    }
+
+                }
+
+
+                chatHistory.push({ role: "model", parts: [{ text: rawText }] });
+
+
+                // Smooth Streaming Simulation
+
+                let i = 0;
+
+                let currentText = '';
+
+                container.innerHTML = '';
+
+               
+
+                return new Promise((resolve) => {
+
+                    const streamInterval = setInterval(() => {
+
+                        const chunk = rawText.substr(i, Math.floor(Math.random() * 5) + 3);
+
+                        currentText += chunk;
+
+                        i += chunk.length;
+
+                       
+
+                        container.innerHTML = formatMarkdown(currentText) + '<span class="inline-block w-2 h-4 bg-gray-400 animate-pulse rounded-sm ml-1 align-middle"></span>';
+
+                       
+
+                        const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 150;
+
+                        if(isNearBottom) chatContainer.scrollTop = chatContainer.scrollHeight;
+
+
+                        if (i >= rawText.length) {
+
+                            clearInterval(streamInterval);
+
+                            container.innerHTML = formatMarkdown(currentText) + sourcesHTML;
+
+                            resolve();
+
+                        }
+
+                    }, 10); // typing speed
+
+                });
+
+               
+
+            } else {
+
+                throw new Error("I had a thought, but it was too brilliant for this dimension to render.");
+
+            }
+
+        };
+
+
+        const formatMarkdown = (text) => {
+
+            let rawHtml = marked.parse(text);
+
+            rawHtml = rawHtml.replace(/<pre><code class="language-(.*?)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, code) => {
+
+                return `
+
+                    <div class="rounded-lg overflow-hidden my-4 border border-gray-700 bg-[#0d0d0d] shadow-lg">
+
+                        <div class="code-header">
+
+                            <span class="uppercase tracking-wider font-semibold">${lang}</span>
+
+                            <button class="copy-btn" onclick="copyCode(this)">
+
+                                <i class="far fa-copy"></i> Copy code
+
+                            </button>
+
+                        </div>
+
+                        <pre style="margin:0;"><code class="language-${lang}">${code}</code></pre>
+
+                    </div>
+
+                `;
+
+            });
+
+            rawHtml = rawHtml.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
+
+                return `
+
+                    <div class="rounded-lg overflow-hidden my-4 border border-gray-700 bg-[#0d0d0d] shadow-lg">
+
+                        <div class="code-header">
+
+                            <span class="uppercase tracking-wider font-semibold">CODE</span>
+
+                            <button class="copy-btn" onclick="copyCode(this)">
+
+                                <i class="far fa-copy"></i> Copy code
+
+                            </button>
+
+                        </div>
+
+                        <pre style="margin:0;"><code>${code}</code></pre>
+
+                    </div>
+
+                `;
+
+            });
+
+            return rawHtml;
+
+        };
+
+
+        const escapeHTML = (str) => {
+
+            return str.replace(/[&<>'"]/g, tag => ({
+
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+
+            }[tag]));
+
+        };
+
+
+        window.copyCode = function(btn) {
+
+            const pre = btn.parentElement.nextElementSibling;
+
+            const code = pre.innerText;
+
+            navigator.clipboard.writeText(code).then(() => {
+
+                const originalHtml = btn.innerHTML;
+
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+
+                btn.style.color = '#10a37f';
+
+                setTimeout(() => {
+
+                    btn.innerHTML = originalHtml;
+
+                    btn.style.color = '';
+
+                }, 2000);
+
+            });
+
+        };
+
+       
+
+        const attachCopyListeners = () => {
+
+            document.querySelectorAll('pre code').forEach((block) => {
+
+                if(!block.classList.contains('hljs')) {
+
+                    hljs.highlightElement(block);
+
+                }
+
+            });
+
+        };
+
+    </script>
+
+</body>
+
+</html>
