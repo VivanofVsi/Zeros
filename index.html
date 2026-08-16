@@ -917,3 +917,241 @@ const chatContainer = document.getElementById('chat-container');
 
                             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         
+  type: 'image',
+
+                            mimeType: file.type,
+
+                            base64: base64,
+
+                            url: dataUrl
+
+                        });
+
+                        renderAttachments();
+
+                    };
+
+                    reader.readAsDataURL(file);
+
+                } else {
+
+                    const reader = new FileReader();
+
+                    reader.onload = (ev) => {
+
+                        currentAttachments.push({
+
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+
+                            type: 'text',
+
+                            name: file.name,
+
+                            text: ev.target.result
+
+                        });
+
+                        renderAttachments();
+
+                    };
+
+                    reader.readAsText(file);
+
+                }
+
+            }
+
+            fileInput.value = ''; // Reset input
+
+        });
+
+
+        const renderAttachments = () => {
+
+            attachmentPreview.innerHTML = '';
+
+            currentAttachments.forEach(att => {
+
+                const div = document.createElement('div');
+
+                div.className = 'relative flex-shrink-0 group cursor-pointer';
+
+               
+
+                if (att.type === 'image') {
+
+                    div.innerHTML = `
+
+                        <div class="w-14 h-14 rounded-xl bg-gray-700 overflow-hidden border border-gray-600 shadow-sm">
+
+                            <img src="${att.url}" class="w-full h-full object-cover" />
+
+                        </div>
+
+                        <button class="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center text-white text-[10px] hover:bg-red-500 transition-colors shadow-md opacity-100 md:opacity-0 group-hover:opacity-100" onclick="removeAttachment('${att.id}')">
+
+                            <i class="fas fa-times"></i>
+
+                        </button>
+
+                    `;
+
+                } else {
+
+                    div.innerHTML = `
+
+                        <div class="w-14 h-14 rounded-xl bg-gray-700 flex flex-col items-center justify-center border border-gray-600 text-gray-300 p-1 shadow-sm">
+
+                            <i class="fas fa-file-alt text-lg mb-1 text-indigo-400"></i>
+
+                            <span class="text-[8px] truncate w-full text-center font-medium px-1">${att.name}</span>
+
+                        </div>
+
+                        <button class="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center text-white text-[10px] hover:bg-red-500 transition-colors shadow-md opacity-100 md:opacity-0 group-hover:opacity-100" onclick="removeAttachment('${att.id}')">
+
+                            <i class="fas fa-times"></i>
+
+                        </button>
+
+                    `;
+
+                }
+
+                attachmentPreview.appendChild(div);
+
+            });
+
+           
+
+            checkSendButtonState();
+
+        };
+
+
+        window.removeAttachment = (id) => {
+
+            currentAttachments = currentAttachments.filter(a => a.id !== id);
+
+            renderAttachments();
+
+        };
+
+
+        const checkSendButtonState = () => {
+
+            sendBtn.disabled = promptInput.value.trim() === '' && currentAttachments.length === 0;
+
+        };
+
+
+        // Auto-resize Textarea
+
+        promptInput.addEventListener('input', function() {
+
+            this.style.height = 'auto';
+
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+
+            checkSendButtonState();
+
+        });
+
+
+        promptInput.addEventListener('keydown', (e) => {
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+
+                e.preventDefault();
+
+                if(promptInput.value.trim() || currentAttachments.length > 0) handleSend();
+
+            }
+
+        });
+
+
+        sendBtn.addEventListener('click', () => {
+
+            if(promptInput.value.trim() || currentAttachments.length > 0) handleSend();
+
+        });
+
+
+        // Quick Prompts
+
+        document.querySelectorAll('.quick-prompt').forEach(btn => {
+
+            btn.addEventListener('click', () => {
+
+                const title = btn.querySelector('.font-medium').innerText;
+
+                const subtitle = btn.querySelector('.text-xs').innerText;
+
+                promptInput.value = `${title} ${subtitle}`;
+
+                promptInput.dispatchEvent(new Event('input'));
+
+                handleSend();
+
+            });
+
+        });
+
+
+        const handleSend = async () => {
+
+            const text = promptInput.value.trim();
+
+            const sentAttachments = [...currentAttachments]; // Capture current attachments
+
+           
+
+            if(!text && sentAttachments.length === 0) return;
+
+
+            // UI Transitions
+
+            if (isFirstMessage) {
+
+                welcomeView.style.opacity = '0';
+
+                setTimeout(() => {
+
+                    welcomeView.style.display = 'none';
+
+                    messagesWrapper.classList.remove('hidden');
+
+                }, 300);
+
+                isFirstMessage = false;
+
+            }
+
+
+            // Clear Input Area
+
+            promptInput.value = '';
+
+            promptInput.style.height = 'auto';
+
+            currentAttachments = [];
+
+            renderAttachments();
+
+            sendBtn.disabled = true;
+
+
+            appendUserMessage(text, sentAttachments);
+
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+
+
+            const { msgDiv, textContainer } = appendAiThinkingUI();
+
+
+            try {
+
+                // Determine if Image generation is requested
+
+                const isImageRequest = /generate image|draw|create an image|picture of|image of/i.test(text);
