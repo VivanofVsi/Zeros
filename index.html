@@ -745,5 +745,175 @@
         const promptInput = document.getElementById('prompt-input');
 
         const sendBtn = document.getElementById('send-btn');
+const chatContainer = document.getElementById('chat-container');
 
+        const messagesWrapper = document.getElementById('messages-wrapper');
+
+        const welcomeView = document.getElementById('welcome-view');
+
+       
+
+        const fileInput = document.getElementById('file-input');
+
+        const attachBtn = document.getElementById('attach-btn');
+
+        const attachmentPreview = document.getElementById('attachment-preview');
+
+
+        const sidebar = document.getElementById('sidebar');
+
+        const backdrop = document.getElementById('sidebar-backdrop');
+
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+
+        const toastContainer = document.getElementById('toast-container');
+
+        const newChatBtn = document.getElementById('new-chat-btn');
+
+
+        // Toasts Notification System
+
+        const showToast = (message) => {
+
+            const toast = document.createElement('div');
+
+            toast.className = 'bg-gray-800 border border-gray-700 text-white px-4 py-2 rounded-full shadow-lg text-sm transition-all duration-300 opacity-0 transform -translate-y-2 pointer-events-auto';
+
+            toast.innerHTML = `<i class="fas fa-info-circle text-indigo-400 mr-2"></i>${message}`;
+
+            toastContainer.appendChild(toast);
+
+           
+
+            requestAnimationFrame(() => toast.classList.remove('opacity-0', '-translate-y-2'));
+
+           
+
+            setTimeout(() => {
+
+                toast.classList.add('opacity-0', '-translate-y-2');
+
+                setTimeout(() => toast.remove(), 300);
+
+            }, 3000);
+
+        };
+
+
+        // Mobile Sidebar
+
+        const toggleSidebar = () => {
+
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+
+            if (isOpen) {
+
+                sidebar.classList.add('-translate-x-full');
+
+                backdrop.classList.add('opacity-0');
+
+                setTimeout(() => backdrop.classList.add('hidden'), 300);
+
+            } else {
+
+                sidebar.classList.remove('-translate-x-full');
+
+                backdrop.classList.remove('hidden');
+
+                setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+
+            }
+
+        };
+
+
+        mobileMenuBtn.addEventListener('click', toggleSidebar);
+
+        backdrop.addEventListener('click', toggleSidebar);
+
+
+        // Reset Chat
+
+        const resetChat = () => {
+
+            chatHistory = [];
+
+            isFirstMessage = true;
+
+            currentAttachments = [];
+
+            renderAttachments();
+
+            messagesWrapper.innerHTML = '';
+
+            messagesWrapper.classList.add('hidden');
+
+            welcomeView.style.display = 'flex';
+
+            setTimeout(() => { welcomeView.style.opacity = '1'; }, 10);
+
+            if(window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) toggleSidebar();
+
+        };
+
+
+        newChatBtn.addEventListener('click', () => {
+
+            resetChat();
+
+            showToast("New pristine conversation started.");
+
+        });
+
+
+        // Sidebar History Buttons
+
+        document.querySelectorAll('#sidebar .overflow-y-auto button').forEach(btn => {
+
+            btn.addEventListener('click', () => {
+
+                resetChat();
+
+                promptInput.value = `Hey Zeros, remind me, what did we discuss about ${btn.innerText}?`;
+
+                promptInput.dispatchEvent(new Event('input'));
+
+                handleSend();
+
+            });
+
+        });
+
+
+        // Profile & Share Buttons
+
+        document.querySelector('.fa-arrow-up-right-from-square').parentElement.addEventListener('click', () => showToast("Chat link copied to your clipboard!"));
+
+        document.querySelector('#sidebar .border-t button').addEventListener('click', () => showToast("Profile settings loaded. Looking good!"));
+
+
+        // File Attachments Logic
+
+        attachBtn.addEventListener('click', () => fileInput.click());
+
+
+        fileInput.addEventListener('change', async (e) => {
+
+            const files = Array.from(e.target.files);
+
+            for (const file of files) {
+
+                if (file.type.startsWith('image/')) {
+
+                    const reader = new FileReader();
+
+                    reader.onload = (ev) => {
+
+                        const dataUrl = ev.target.result;
+
+                        const base64 = dataUrl.split(',')[1];
+
+                        currentAttachments.push({
+
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         
